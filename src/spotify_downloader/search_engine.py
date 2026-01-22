@@ -35,9 +35,9 @@ class SearchEngine:
 
     def __init__(
         self,
-        max_retries: int = 3,
-        duration_tolerance: float = 0.15,
-        min_quality_score: float = 0.5
+        max_retries: int = 5,
+        duration_tolerance: float = 0.30,
+        min_quality_score: float = 0.3
     ):
         """
         Initialize the search engine.
@@ -64,25 +64,38 @@ class SearchEngine:
             Best matching SearchResult or None
         """
         search_queries = self._generate_search_queries(metadata)
+        all_results = []
 
         for i, query in enumerate(search_queries[:self.max_retries]):
             console.print(f"[cyan]Searching ({i + 1}/{self.max_retries}): {query}[/cyan]")
             
-            results = self._execute_search(query)
+            results = self._execute_search(query, max_results=10)
             if not results:
+                time.sleep(0.3)
                 continue
 
             best_match = self._find_best_match(results, metadata)
-            if best_match and best_match.quality_score >= self.min_quality_score:
-                console.print(
-                    f"[green]Found match: {best_match.title} "
-                    f"(score: {best_match.quality_score:.2f})[/green]"
-                )
-                return best_match
+            if best_match:
+                all_results.append(best_match)
+                if best_match.quality_score >= self.min_quality_score:
+                    console.print(
+                        f"[green]Found match: {best_match.title} "
+                        f"(score: {best_match.quality_score:.2f})[/green]"
+                    )
+                    return best_match
 
-            time.sleep(0.5)
+            time.sleep(0.3)
 
-        console.print(f"[yellow]No high-quality match found for: {metadata.name}[/yellow]")
+        if all_results:
+            all_results.sort(key=lambda x: x.quality_score, reverse=True)
+            best = all_results[0]
+            console.print(
+                f"[yellow]Using best available match: {best.title} "
+                f"(score: {best.quality_score:.2f})[/yellow]"
+            )
+            return best
+
+        console.print(f"[yellow]No match found for: {metadata.name}[/yellow]")
         return None
 
     def _generate_search_queries(self, metadata: TrackMetadata) -> list[str]:
@@ -97,18 +110,25 @@ class SearchEngine:
         """
         queries = []
 
+        queries.append(f"{metadata.artist} {metadata.name}")
+
         queries.append(f"{metadata.artist} {metadata.name} official audio")
+
+        queries.append(f"{metadata.name} {metadata.artist}")
 
         if metadata.isrc:
             queries.append(f"{metadata.isrc}")
 
         queries.append(f"{metadata.artist} {metadata.name} lyrics")
 
-        queries.append(f"{metadata.artist} {metadata.name}")
-
-        queries.append(f"{metadata.name} {metadata.artist} audio")
+        queries.append(f"{metadata.name} audio")
 
         queries.append(f"{metadata.name} {metadata.album}")
+
+        queries.append(f"{metadata.name} full song")
+
+        artist_first = metadata.artist.split(",")[0].strip() if "," in metadata.artist else metadata.artist
+        queries.append(f"{artist_first} {metadata.name}")
 
         return queries
 
@@ -182,15 +202,16 @@ class SearchEngine:
         for result in results:
             try:
                 duration = result.get("duration") or 0
-                if duration == 0:
-                    continue
-
+                
                 score = self._calculate_quality_score(result, metadata, target_duration)
                 
+                video_id = result.get("id") or result.get("url", "").split("watch?v=")[-1]
+                url = result.get("url") or f"https://www.youtube.com/watch?v={video_id}"
+                
                 search_result = SearchResult(
-                    url=result.get("url") or f"https://www.youtube.com/watch?v={result.get('id')}",
+                    url=url,
                     title=result.get("title", "Unknown"),
-                    duration=duration,
+                    duration=duration if duration else int(target_duration),
                     view_count=result.get("view_count", 0) or 0,
                     source="youtube",
                     quality_score=score
@@ -216,9 +237,9 @@ class SearchEngine:
         Calculate a quality score for a search result.
 
         Scoring factors:
-        - Duration match (40%)
-        - Title relevance (30%)
-        - View count popularity (20%)
+        - Title relevance (50%)
+        - Duration match (25%)
+        - View count popularity (15%)
         - Official/audio keywords (10%)
 
         Args:
@@ -232,33 +253,44 @@ class SearchEngine:
         score = 0.0
         title = result.get("title", "").lower()
 
-        duration = result.get("duration") or 0
-        if duration > 0:
-            duration_diff = abs(duration - target_duration) / target_duration
-            if duration_diff <= self.duration_tolerance:
-                duration_score = 1.0 - (duration_diff / self.duration_tolerance)
-            else:
-                duration_score = max(0, 1.0 - duration_diff)
-            score += duration_score * 0.4
-
         artist_lower = metadata.artist.lower()
         track_lower = metadata.name.lower()
         
         title_score = 0.0
-        if artist_lower in title:
-            title_score += 0.5
-        if track_lower in title:
-            title_score += 0.5
-        score += title_score * 0.3
+        artist_words = artist_lower.split()
+        track_words = track_lower.split()
+        
+        for word in artist_words:
+            if len(word) > 2 and word in title:
+                title_score += 0.25
+        for word in track_words:
+            if len(word) > 2 and word in title:
+                title_score += 0.25
+        
+        title_score = min(1.0, title_score)
+        score += title_score * 0.5
+
+        duration = result.get("duration") or 0
+        if duration > 0 and target_duration > 0:
+            duration_diff = abs(duration - target_duration) / max(target_duration, 1)
+            if duration_diff <= self.duration_tolerance:
+                duration_score = 1.0 - (duration_diff / self.duration_tolerance)
+            else:
+                duration_score = max(0, 0.5 - (duration_diff * 0.3))
+            score += duration_score * 0.25
+        else:
+            score += 0.1
 
         view_count = result.get("view_count", 0) or 0
         if view_count > 0:
             import math
-            popularity_score = min(1.0, math.log10(view_count + 1) / 9)
-            score += popularity_score * 0.2
+            popularity_score = min(1.0, math.log10(view_count + 1) / 8)
+            score += popularity_score * 0.15
+        else:
+            score += 0.05
 
-        official_keywords = ["official", "audio", "lyrics", "hd", "hq"]
-        bad_keywords = ["cover", "remix", "live", "karaoke", "instrumental", "acoustic"]
+        official_keywords = ["official", "audio", "lyrics", "hd", "hq", "full"]
+        bad_keywords = ["cover", "remix", "live", "karaoke", "instrumental", "acoustic", "slowed", "reverb"]
         
         keyword_score = 0.5
         for keyword in official_keywords:
@@ -266,10 +298,10 @@ class SearchEngine:
                 keyword_score = min(1.0, keyword_score + 0.1)
         for keyword in bad_keywords:
             if keyword in title and keyword not in track_lower:
-                keyword_score = max(0.0, keyword_score - 0.2)
+                keyword_score = max(0.0, keyword_score - 0.15)
         score += keyword_score * 0.1
 
-        return min(1.0, score)
+        return min(1.0, max(0.1, score))
 
     def get_video_info(self, url: str) -> Optional[dict]:
         """
