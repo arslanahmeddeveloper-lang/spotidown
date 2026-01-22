@@ -1,0 +1,21 @@
+# Spotify Downloader Requirements
+# Python 3.9+
+
+# Spotify API client
+spotipy>=2.23.0
+
+# ID3 tag manipulation
+mutagen>=1.47.0
+
+# HTTP requests
+requests>=2.31.0
+
+# CLI framework
+click>=8.1.0
+
+# Rich console output
+rich>=13.0.0
+
+# Note: The following system packages are also required:
+# - yt-dlp (for searching and downloading audio)
+# - ffmpeg (for audio conversion and processing)
