@@ -15,6 +15,38 @@ from rich.console import Console
 console = Console()
 
 
+def refresh_spotify_token(client_id: str, refresh_token: str) -> Optional[str]:
+    """
+    Refresh the Spotify access token using the refresh token.
+    
+    Args:
+        client_id: Spotify client ID
+        refresh_token: Refresh token from OAuth
+        
+    Returns:
+        New access token or None if failed
+    """
+    try:
+        response = requests.post(
+            "https://accounts.spotify.com/api/token",
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": refresh_token,
+                "client_id": client_id,
+            },
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            timeout=10
+        )
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("access_token")
+    except Exception as e:
+        console.print(f"[yellow]Token refresh failed: {e}[/yellow]")
+    return None
+
+
 def get_replit_spotify_token() -> Optional[Dict[str, Any]]:
     """
     Get Spotify access token from Replit connector integration.
@@ -59,15 +91,34 @@ def get_replit_spotify_token() -> Optional[Dict[str, Any]]:
         access_token = settings.get("access_token") or credentials.get("access_token")
         refresh_token = credentials.get("refresh_token")
         client_id = credentials.get("client_id")
+        expires_at = settings.get("expires_at")
         
-        if access_token:
+        if access_token and refresh_token and client_id:
+            import datetime
+            token_expired = False
+            if expires_at:
+                try:
+                    expiry_time = datetime.datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+                    token_expired = expiry_time <= datetime.datetime.now(datetime.timezone.utc)
+                except:
+                    token_expired = True
+            
+            if token_expired:
+                console.print("[yellow]Access token expired, refreshing...[/yellow]")
+                new_token = refresh_spotify_token(client_id, refresh_token)
+                if new_token:
+                    access_token = new_token
+                    console.print("[green]Token refreshed successfully.[/green]")
+                else:
+                    console.print("[yellow]Token refresh failed, trying existing token...[/yellow]")
+            
             return {
                 "access_token": access_token,
                 "refresh_token": refresh_token,
                 "client_id": client_id
             }
-    except Exception:
-        pass
+    except Exception as e:
+        console.print(f"[yellow]Replit connector error: {e}[/yellow]")
     
     return None
 
