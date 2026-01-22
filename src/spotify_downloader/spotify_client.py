@@ -177,12 +177,13 @@ class SpotifyClient:
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self._spotify: Optional[spotipy.Spotify] = None
+        self._use_public_api = False
 
     def authenticate(self) -> bool:
         """
         Authenticate with Spotify API.
         
-        First tries Replit connector integration, then falls back to credentials.
+        First tries Replit connector integration, then credentials, then falls back to public API.
 
         Returns:
             True if authentication was successful, False otherwise.
@@ -197,27 +198,22 @@ class SpotifyClient:
             except Exception as e:
                 console.print(f"[yellow]Replit integration auth failed, trying credentials: {e}[/yellow]")
 
-        if not self.client_id or not self.client_secret:
-            console.print(
-                "[red]Error: Spotify credentials not found.[/red]\n"
-                "Either connect Spotify via Replit integration or set:\n"
-                "  - SPOTIFY_CLIENT_ID\n"
-                "  - SPOTIFY_CLIENT_SECRET"
-            )
-            return False
+        if self.client_id and self.client_secret:
+            try:
+                auth_manager = SpotifyClientCredentials(
+                    client_id=self.client_id,
+                    client_secret=self.client_secret
+                )
+                self._spotify = spotipy.Spotify(auth_manager=auth_manager)
+                self._spotify.search(q="test", limit=1)
+                console.print("[green]Successfully authenticated with Spotify API.[/green]")
+                return True
+            except Exception as e:
+                console.print(f"[yellow]Credentials auth failed: {e}[/yellow]")
 
-        try:
-            auth_manager = SpotifyClientCredentials(
-                client_id=self.client_id,
-                client_secret=self.client_secret
-            )
-            self._spotify = spotipy.Spotify(auth_manager=auth_manager)
-            self._spotify.search(q="test", limit=1)
-            console.print("[green]Successfully authenticated with Spotify API.[/green]")
-            return True
-        except Exception as e:
-            console.print(f"[red]Authentication failed: {e}[/red]")
-            return False
+        console.print("[green]Using Spotify public API (oEmbed).[/green]")
+        self._use_public_api = True
+        return True
 
     def _make_api_call(self, func, *args, **kwargs):
         """
@@ -267,6 +263,9 @@ class SpotifyClient:
         Returns:
             TrackMetadata object or None if failed
         """
+        if self._use_public_api:
+            return self._get_track_public(track_url)
+        
         if not self._spotify:
             console.print("[red]Not authenticated. Call authenticate() first.[/red]")
             return None
@@ -277,6 +276,78 @@ class SpotifyClient:
             return self._parse_track(track)
         except Exception as e:
             console.print(f"[red]Failed to fetch track: {e}[/red]")
+            return None
+
+    def _get_track_public(self, track_url: str) -> Optional[TrackMetadata]:
+        """
+        Fetch track metadata using public oEmbed API and web scraping.
+
+        Args:
+            track_url: Spotify track URL
+
+        Returns:
+            TrackMetadata object or None if failed
+        """
+        try:
+            track_id = self._extract_id(track_url, "track")
+            
+            if not track_url.startswith("http"):
+                track_url = f"https://open.spotify.com/track/{track_id}"
+            
+            oembed_url = f"https://open.spotify.com/oembed?url={track_url}"
+            response = requests.get(oembed_url, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            
+            title = data.get("title", "Unknown")
+            thumbnail_url = data.get("thumbnail_url")
+            
+            parts = title.split(" - ", 1) if " - " in title else [title, "Unknown Artist"]
+            if len(parts) == 2:
+                name = parts[0].strip()
+                artist = parts[1].strip()
+            else:
+                name = title
+                artist = "Unknown Artist"
+            
+            embed_url = f"https://open.spotify.com/embed/track/{track_id}"
+            try:
+                embed_response = requests.get(embed_url, timeout=10)
+                if embed_response.status_code == 200:
+                    import re
+                    duration_match = re.search(r'"duration_ms"\s*:\s*(\d+)', embed_response.text)
+                    duration_ms = int(duration_match.group(1)) if duration_match else 180000
+                    
+                    artist_match = re.search(r'"artists"\s*:\s*\[\s*\{\s*"name"\s*:\s*"([^"]+)"', embed_response.text)
+                    if artist_match:
+                        artist = artist_match.group(1)
+                    
+                    track_name_match = re.search(r'"name"\s*:\s*"([^"]+)"[^}]*"type"\s*:\s*"track"', embed_response.text)
+                    if track_name_match:
+                        name = track_name_match.group(1)
+                    
+                    album_match = re.search(r'"album"\s*:\s*\{[^}]*"name"\s*:\s*"([^"]+)"', embed_response.text)
+                    album = album_match.group(1) if album_match else "Unknown Album"
+                else:
+                    duration_ms = 180000
+                    album = "Unknown Album"
+            except Exception:
+                duration_ms = 180000
+                album = "Unknown Album"
+            
+            return TrackMetadata(
+                track_id=track_id,
+                name=name,
+                artist=artist,
+                album=album,
+                album_art_url=thumbnail_url,
+                isrc=None,
+                duration_ms=duration_ms,
+                release_date=None
+            )
+            
+        except Exception as e:
+            console.print(f"[red]Failed to fetch track via public API: {e}[/red]")
             return None
 
     def get_playlist_tracks(self, playlist_url: str) -> list[TrackMetadata]:
