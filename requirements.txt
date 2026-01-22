@@ -19,3 +19,4 @@ rich>=13.0.0
 # Note: The following system packages are also required:
 # - yt-dlp (for searching and downloading audio)
 # - ffmpeg (for audio conversion and processing)
+flask

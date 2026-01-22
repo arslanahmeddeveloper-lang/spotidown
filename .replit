@@ -17,15 +17,20 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Spotify Downloader CLI"
+args = "Spotify Downloader Web"
 
 [[workflows.workflow]]
-name = "Spotify Downloader CLI"
+name = "Spotify Downloader Web"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python main.py --help"
+args = "python app.py"
+waitForPort = 5000
 
 [workflows.workflow.metadata]
-outputType = "console"
+outputType = "webview"
+
+[[ports]]
+localPort = 5000
+externalPort = 80

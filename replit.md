@@ -2,7 +2,7 @@
 
 ## Overview
 
-A CLI-based Spotify Downloader tool that fetches music metadata from Spotify and downloads matching audio files with embedded ID3 tags and album art.
+A web-based Spotify Downloader tool with a beautiful UI that fetches music metadata from Spotify and downloads matching audio files with embedded ID3 tags and album art. Users can paste a Spotify track URL, see the song details, and download it as a high-quality MP3 file.
 
 ## Project Architecture
 
@@ -13,9 +13,16 @@ A CLI-based Spotify Downloader tool that fetches music metadata from Spotify and
 - **Downloader** (`src/spotify_downloader/downloader.py`): Multi-threaded download manager with file validation
 - **MetadataManager** (`src/spotify_downloader/metadata_manager.py`): Embeds ID3 tags and album art using mutagen and ffmpeg
 
-### Entry Points
+### Web Application
 
-- `main.py` - Main CLI entry point
+- `app.py` - Flask web server with API endpoints
+- `templates/index.html` - Beautiful responsive UI
+- `static/style.css` - Spotify-inspired dark theme styling
+- `static/script.js` - Frontend JavaScript for async operations
+
+### CLI (Legacy)
+
+- `main.py` - CLI entry point
 - `src/spotify_downloader/cli.py` - Click-based CLI commands
 
 ## Technology Stack
@@ -59,6 +66,9 @@ python main.py cleanup
 
 ## Recent Changes
 
+- Converted to web application with beautiful Spotify-inspired UI
+- Real-time download progress tracking
+- One-click MP3 download to device
 - Initial implementation with modular architecture
 - Multi-threaded playlist/album downloads
 - Retry logic for search failures
