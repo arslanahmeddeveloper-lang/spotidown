@@ -28,10 +28,15 @@ A CLI-based Spotify Downloader tool that fetches music metadata from Spotify and
 - **ID3 Tags**: mutagen
 - **Console Output**: rich
 
-## Required Environment Variables
+## Authentication
 
-- `SPOTIFY_CLIENT_ID` - Spotify API client ID
-- `SPOTIFY_CLIENT_SECRET` - Spotify API client secret
+The tool supports two authentication methods:
+
+1. **Replit Spotify Integration** (recommended): Connect your Spotify account via Replit's integration. This handles OAuth automatically.
+
+2. **Manual Credentials**: Set environment variables:
+   - `SPOTIFY_CLIENT_ID` - Spotify API client ID  
+   - `SPOTIFY_CLIENT_SECRET` - Spotify API client secret
 
 ## Commands
 

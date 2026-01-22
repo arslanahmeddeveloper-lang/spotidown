@@ -4,14 +4,72 @@ SpotifyClient - Handles Spotify API authentication and metadata fetching.
 
 import os
 import time
-from typing import Optional
+from typing import Optional, Any, Dict
 from dataclasses import dataclass
 
+import requests
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from rich.console import Console
 
 console = Console()
+
+
+def get_replit_spotify_token() -> Optional[Dict[str, Any]]:
+    """
+    Get Spotify access token from Replit connector integration.
+    
+    Returns:
+        Dictionary with access_token or None if not available.
+    """
+    hostname = os.environ.get("REPLIT_CONNECTORS_HOSTNAME")
+    repl_identity = os.environ.get("REPL_IDENTITY")
+    web_repl_renewal = os.environ.get("WEB_REPL_RENEWAL")
+    
+    if not hostname:
+        return None
+    
+    if repl_identity:
+        x_replit_token = f"repl {repl_identity}"
+    elif web_repl_renewal:
+        x_replit_token = f"depl {web_repl_renewal}"
+    else:
+        return None
+    
+    try:
+        response = requests.get(
+            f"https://{hostname}/api/v2/connection?include_secrets=true&connector_names=spotify",
+            headers={
+                "Accept": "application/json",
+                "X_REPLIT_TOKEN": x_replit_token
+            },
+            timeout=10
+        )
+        response.raise_for_status()
+        data = response.json()
+        
+        connection_settings = data.get("items", [{}])[0] if data.get("items") else None
+        if not connection_settings:
+            return None
+        
+        settings = connection_settings.get("settings", {})
+        oauth = settings.get("oauth", {})
+        credentials = oauth.get("credentials", {})
+        
+        access_token = settings.get("access_token") or credentials.get("access_token")
+        refresh_token = credentials.get("refresh_token")
+        client_id = credentials.get("client_id")
+        
+        if access_token:
+            return {
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "client_id": client_id
+            }
+    except Exception:
+        pass
+    
+    return None
 
 
 @dataclass
@@ -44,6 +102,7 @@ class SpotifyClient:
     Handles Spotify API authentication and metadata fetching.
     
     Implements rate limiting and retry logic for API calls.
+    Supports both Replit connector integration and manual credentials.
     """
 
     def __init__(
@@ -71,14 +130,28 @@ class SpotifyClient:
     def authenticate(self) -> bool:
         """
         Authenticate with Spotify API.
+        
+        First tries Replit connector integration, then falls back to credentials.
 
         Returns:
             True if authentication was successful, False otherwise.
         """
+        replit_token = get_replit_spotify_token()
+        if replit_token and replit_token.get("access_token"):
+            try:
+                self._spotify = spotipy.Spotify(auth=replit_token["access_token"])
+                self._spotify.search(q="test", limit=1)
+                console.print("[green]Successfully authenticated with Spotify via Replit integration.[/green]")
+                return True
+            except Exception as e:
+                console.print(f"[yellow]Replit integration auth failed, trying credentials: {e}[/yellow]")
+
         if not self.client_id or not self.client_secret:
             console.print(
-                "[red]Error: SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET "
-                "environment variables must be set.[/red]"
+                "[red]Error: Spotify credentials not found.[/red]\n"
+                "Either connect Spotify via Replit integration or set:\n"
+                "  - SPOTIFY_CLIENT_ID\n"
+                "  - SPOTIFY_CLIENT_SECRET"
             )
             return False
 

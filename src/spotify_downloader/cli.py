@@ -30,21 +30,18 @@ def print_banner():
     console.print(Panel(banner, style="cyan"))
 
 
-def validate_credentials() -> bool:
-    """Check if Spotify credentials are set."""
+def check_spotify_connection() -> bool:
+    """Check if Spotify connection is available (either Replit integration or env vars)."""
+    from .spotify_client import get_replit_spotify_token
+    
+    replit_token = get_replit_spotify_token()
+    if replit_token and replit_token.get("access_token"):
+        return True
+    
     client_id = os.environ.get("SPOTIFY_CLIENT_ID")
     client_secret = os.environ.get("SPOTIFY_CLIENT_SECRET")
     
-    if not client_id or not client_secret:
-        console.print(
-            "[red]Error: Spotify credentials not found![/red]\n\n"
-            "Please set the following environment variables:\n"
-            "  - SPOTIFY_CLIENT_ID\n"
-            "  - SPOTIFY_CLIENT_SECRET\n\n"
-            "You can get these from: https://developer.spotify.com/dashboard"
-        )
-        return False
-    return True
+    return bool(client_id and client_secret)
 
 
 @click.group()
@@ -86,9 +83,6 @@ def track(url: str, output: str, quality: str, normalize: bool):
         spotify-dl track https://open.spotify.com/track/...
     """
     print_banner()
-    
-    if not validate_credentials():
-        sys.exit(1)
 
     spotify = SpotifyClient()
     if not spotify.authenticate():
@@ -144,9 +138,6 @@ def playlist(url: str, output: str, quality: str, workers: int, normalize: bool)
         spotify-dl playlist https://open.spotify.com/playlist/...
     """
     print_banner()
-    
-    if not validate_credentials():
-        sys.exit(1)
 
     spotify = SpotifyClient()
     if not spotify.authenticate():
@@ -197,9 +188,6 @@ def album(url: str, output: str, quality: str, workers: int, normalize: bool):
         spotify-dl album https://open.spotify.com/album/...
     """
     print_banner()
-    
-    if not validate_credentials():
-        sys.exit(1)
 
     spotify = SpotifyClient()
     if not spotify.authenticate():
