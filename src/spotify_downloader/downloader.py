@@ -105,6 +105,15 @@ class Downloader:
                 os.remove(final_path)
 
         try:
+            # Determine ffmpeg location dynamically
+            ffmpeg_path = os.environ.get("FFMPEG_PATH", "ffmpeg")
+            
+            # Use specific Windows winget path if on Windows and no env var set, else rely on system PATH
+            if os.name == 'nt' and not os.environ.get("FFMPEG_PATH"):
+                 default_win_path = r"C:\Users\Palwasha Ali\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-essentials_build\bin"
+                 if os.path.exists(default_win_path):
+                     ffmpeg_path = default_win_path
+            
             cmd = [
                 sys.executable, "-m", "yt_dlp",
                 search_result.url,
@@ -112,7 +121,7 @@ class Downloader:
                 "-f", "bestaudio/best",
                 "--audio-format", "mp3",
                 "--audio-quality", "0",
-                "--ffmpeg-location", r"C:\Users\Palwasha Ali\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-essentials_build\bin",
+                "--ffmpeg-location", ffmpeg_path,
                 "--postprocessor-args", "ffmpeg:-b:a 192k",
                 "-o", output_template,
                 "--no-playlist",
@@ -298,7 +307,12 @@ class Downloader:
         Returns:
             Bitrate in kbps, or 0 if unable to determine
         """
-        ffprobe_path = r"C:\Users\Palwasha Ali\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-essentials_build\bin\ffprobe.exe"
+        ffprobe_path = os.environ.get("FFPROBE_PATH", "ffprobe")
+        if os.name == 'nt' and not os.environ.get("FFPROBE_PATH"):
+            default_win_path = r"C:\Users\Palwasha Ali\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-essentials_build\bin\ffprobe.exe"
+            if os.path.exists(default_win_path):
+                ffprobe_path = default_win_path
+                
         try:
             cmd = [
                 ffprobe_path,

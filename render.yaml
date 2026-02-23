@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: spotidown
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: PORT
+        value: 5000
