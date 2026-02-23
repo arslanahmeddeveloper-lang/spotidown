@@ -2,6 +2,7 @@
 SearchEngine - Handles searching for audio matches using yt-dlp.
 """
 
+import sys
 import subprocess
 import json
 import time
@@ -35,7 +36,7 @@ class SearchEngine:
 
     def __init__(
         self,
-        max_retries: int = 5,
+        max_retries: int = 2,
         duration_tolerance: float = 0.30,
         min_quality_score: float = 0.3
     ):
@@ -69,9 +70,8 @@ class SearchEngine:
         for i, query in enumerate(search_queries[:self.max_retries]):
             console.print(f"[cyan]Searching ({i + 1}/{self.max_retries}): {query}[/cyan]")
             
-            results = self._execute_search(query, max_results=10)
+            results = self._execute_search(query, max_results=2)
             if not results:
-                time.sleep(0.3)
                 continue
 
             best_match = self._find_best_match(results, metadata)
@@ -83,8 +83,6 @@ class SearchEngine:
                         f"(score: {best_match.quality_score:.2f})[/green]"
                     )
                     return best_match
-
-            time.sleep(0.3)
 
         if all_results:
             all_results.sort(key=lambda x: x.quality_score, reverse=True)
@@ -145,7 +143,7 @@ class SearchEngine:
         """
         try:
             cmd = [
-                "yt-dlp",
+                sys.executable, "-m", "yt_dlp",
                 f"ytsearch{max_results}:{query}",
                 "--dump-json",
                 "--flat-playlist",
@@ -161,6 +159,7 @@ class SearchEngine:
             )
 
             if result.returncode != 0:
+                print(f"DEBUG yt-dlp error: {result.stderr}", file=sys.stderr)
                 return []
 
             results = []
@@ -315,7 +314,7 @@ class SearchEngine:
         """
         try:
             cmd = [
-                "yt-dlp",
+                sys.executable, "-m", "yt_dlp",
                 url,
                 "--dump-json",
                 "--no-download",

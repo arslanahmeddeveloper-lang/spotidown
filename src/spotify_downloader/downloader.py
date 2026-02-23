@@ -4,6 +4,7 @@ Downloader - Handles downloading audio with multi-threaded support.
 
 import os
 import subprocess
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional, Callable
@@ -105,17 +106,20 @@ class Downloader:
 
         try:
             cmd = [
-                "yt-dlp",
+                sys.executable, "-m", "yt_dlp",
                 search_result.url,
                 "-x",
+                "-f", "bestaudio/best",
                 "--audio-format", "mp3",
                 "--audio-quality", "0",
-                "--postprocessor-args", "ffmpeg:-b:a 320k",
+                "--ffmpeg-location", r"C:\Users\Palwasha Ali\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-essentials_build\bin",
+                "--postprocessor-args", "ffmpeg:-b:a 192k",
                 "-o", output_template,
                 "--no-playlist",
                 "--no-warnings",
                 "--quiet",
-                "--progress"
+                "--progress",
+                "--concurrent-fragments", "8"
             ]
 
             result = subprocess.run(
@@ -294,9 +298,10 @@ class Downloader:
         Returns:
             Bitrate in kbps, or 0 if unable to determine
         """
+        ffprobe_path = r"C:\Users\Palwasha Ali\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-essentials_build\bin\ffprobe.exe"
         try:
             cmd = [
-                "ffprobe",
+                ffprobe_path,
                 "-v", "error",
                 "-select_streams", "a:0",
                 "-show_entries", "stream=bit_rate",
@@ -321,7 +326,7 @@ class Downloader:
         try:
             file_size = os.path.getsize(file_path)
             cmd = [
-                "ffprobe",
+                ffprobe_path,
                 "-v", "error",
                 "-show_entries", "format=duration",
                 "-of", "default=noprint_wrappers=1:nokey=1",

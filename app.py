@@ -1,5 +1,5 @@
 """
-Spotify Downloader Web Application.
+Spotify Downloader Web Application (FastAPI Version)
 
 A beautiful web interface for downloading music from Spotify.
 """
@@ -8,7 +8,11 @@ import os
 import sys
 import uuid
 import threading
-from flask import Flask, render_template, request, jsonify, send_file
+from fastapi import FastAPI, Request, BackgroundTasks, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
@@ -17,50 +21,52 @@ from spotify_downloader.search_engine import SearchEngine
 from spotify_downloader.downloader import Downloader
 from spotify_downloader.metadata_manager import MetadataManager
 
-app = Flask(__name__)
-app.secret_key = os.environ.get("SESSION_SECRET", "spotify-dl-secret-key")
+app = FastAPI()
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
 DOWNLOAD_DIR = "downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 download_status = {}
 
+class TrackRequest(BaseModel):
+    url: str
 
-@app.after_request
-def add_header(response):
+@app.middleware("http")
+async def add_no_cache_header(request: Request, call_next):
+    response = await call_next(request)
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     return response
 
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-
-@app.route("/api/fetch", methods=["POST"])
-def fetch_track():
+@app.post("/api/fetch")
+async def fetch_track(data: TrackRequest):
     """Fetch track metadata from Spotify."""
-    data = request.get_json()
-    url = data.get("url", "").strip()
+    url = data.url.strip()
     
     if not url:
-        return jsonify({"error": "Please provide a Spotify URL"}), 400
+        return JSONResponse(status_code=400, content={"error": "Please provide a Spotify URL"})
     
     if "open.spotify.com/track" not in url and "spotify:track:" not in url:
-        return jsonify({"error": "Please provide a valid Spotify track URL"}), 400
+        return JSONResponse(status_code=400, content={"error": "Please provide a valid Spotify track URL"})
     
     try:
         spotify = SpotifyClient()
         if not spotify.authenticate():
-            return jsonify({"error": "Failed to authenticate with Spotify"}), 500
+            return JSONResponse(status_code=500, content={"error": "Failed to authenticate with Spotify"})
         
         metadata = spotify.get_track(url)
         if not metadata:
-            return jsonify({"error": "Could not fetch track information"}), 404
+            return JSONResponse(status_code=404, content={"error": "Could not fetch track information"})
         
-        return jsonify({
+        return {
             "success": True,
             "track": {
                 "id": metadata.track_id,
@@ -74,20 +80,19 @@ def fetch_track():
                 "release_date": metadata.release_date,
                 "filename": metadata.filename
             }
-        })
+        }
     
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
-@app.route("/api/download", methods=["POST"])
-def download_track():
+@app.post("/api/download")
+async def download_track(data: TrackRequest):
     """Start downloading a track."""
-    data = request.get_json()
-    url = data.get("url", "").strip()
+    url = data.url.strip()
     
     if not url:
-        return jsonify({"error": "Please provide a Spotify URL"}), 400
+        return JSONResponse(status_code=400, content={"error": "Please provide a Spotify URL"})
     
     download_id = str(uuid.uuid4())
     download_status[download_id] = {
@@ -104,11 +109,10 @@ def download_track():
     )
     thread.start()
     
-    return jsonify({
+    return {
         "success": True,
         "download_id": download_id
-    })
-
+    }
 
 def process_download(download_id: str, url: str):
     """Process the download in a background thread."""
@@ -171,40 +175,40 @@ def process_download(download_id: str, url: str):
         download_status[download_id]["filename"] = f"{metadata.filename}.mp3"
         
     except Exception as e:
+        import traceback
         download_status[download_id]["status"] = "error"
-        download_status[download_id]["error"] = str(e)
+        download_status[download_id]["error"] = f"{str(e)} | {traceback.format_exc()}"
 
 
-@app.route("/api/status/<download_id>")
-def get_status(download_id: str):
+@app.get("/api/status/{download_id}")
+async def get_status(download_id: str):
     """Get the status of a download."""
     if download_id not in download_status:
-        return jsonify({"error": "Download not found"}), 404
+        return JSONResponse(status_code=404, content={"error": "Download not found"})
     
-    return jsonify(download_status[download_id])
+    return download_status[download_id]
 
 
-@app.route("/api/file/<download_id>")
-def get_file(download_id: str):
+@app.get("/api/file/{download_id}")
+async def get_file(download_id: str):
     """Download the completed file."""
     if download_id not in download_status:
-        return jsonify({"error": "Download not found"}), 404
+        return JSONResponse(status_code=404, content={"error": "Download not found"})
     
     status = download_status[download_id]
     if status["status"] != "complete" or not status.get("file_path"):
-        return jsonify({"error": "File not ready"}), 400
+        return JSONResponse(status_code=400, content={"error": "File not ready"})
     
     file_path = status["file_path"]
     if not os.path.exists(file_path):
-        return jsonify({"error": "File not found"}), 404
+        return JSONResponse(status_code=404, content={"error": "File not found"})
     
-    return send_file(
-        file_path,
-        as_attachment=True,
-        download_name=status.get("filename", "download.mp3"),
-        mimetype="audio/mpeg"
+    return FileResponse(
+        path=file_path,
+        filename=status.get("filename", "download.mp3"),
+        media_type="audio/mpeg"
     )
 
-
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    import uvicorn
+    uvicorn.run("app:app", host="0.0.0.0", port=5000, reload=True)

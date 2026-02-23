@@ -154,8 +154,9 @@ class MetadataManager:
             fd, temp_path = tempfile.mkstemp(suffix=".mp3")
             os.close(fd)
 
+            ffmpeg_path = r"C:\Users\Palwasha Ali\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-essentials_build\bin\ffmpeg.exe"
             cmd = [
-                "ffmpeg",
+                ffmpeg_path,
                 "-i", file_path,
                 "-b:a", f"{self.target_bitrate}k",
                 "-y",
@@ -195,8 +196,9 @@ class MetadataManager:
             fd, temp_path = tempfile.mkstemp(suffix=".mp3")
             os.close(fd)
 
+            ffmpeg_path = r"C:\Users\Palwasha Ali\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-essentials_build\bin\ffmpeg.exe"
             cmd = [
-                "ffmpeg",
+                ffmpeg_path,
                 "-i", file_path,
                 "-af", "loudnorm=I=-16:TP=-1.5:LRA=11",
                 "-b:a", f"{self.target_bitrate}k",

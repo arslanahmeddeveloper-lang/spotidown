@@ -3,94 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spotify Downloader</title>
+    <title>Spotify Downloader Pro</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="container">
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+    
+    <div class="container glass-panel">
         <header class="header">
             <div class="logo">
-                <svg viewBox="0 0 24 24" fill="currentColor" class="spotify-icon">
-                    <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
-                </svg>
+                <div class="icon-glow">
+                    <svg viewBox="0 0 24 24" fill="currentColor" class="spotify-icon">
+                        <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+                    </svg>
+                </div>
                 <h1>Spotify Downloader</h1>
             </div>
-            <p class="tagline">Download your favorite songs in high quality MP3</p>
+            <p class="tagline">Premium audio drops directly to your device.</p>
         </header>
 
         <main class="main">
             <div class="search-section">
-                <div class="input-wrapper">
+                <div class="input-wrapper glow-border">
+                    <div class="input-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 14l11-11m-11 11v8c0 .55.45 1 1 1h8c.55 0 1-.45 1-1v-8m-11 11H3c-.55 0-1-.45-1-1v-8M10 14L3 7m18-4h-8m8 0v8"/></svg>
+                    </div>
                     <input 
                         type="text" 
                         id="spotify-url" 
-                        placeholder="Paste Spotify track URL here..."
+                        placeholder="Paste Spotify Link..."
                         autocomplete="off"
                     >
-                    <button id="fetch-btn" class="btn btn-primary">
-                        <span class="btn-text">Get Track</span>
-                        <span class="btn-loader"></span>
+                    <button id="fetch-btn" class="btn btn-primary pulse-hover">
+                        <span class="btn-text">Search</span>
+                        <div class="btn-loader"></div>
                     </button>
                 </div>
-                <p class="hint">Example: https://open.spotify.com/track/...</p>
             </div>
 
-            <div id="error-message" class="error-message hidden"></div>
+            <div id="toast-container" class="toast-container"></div>
 
-            <div id="track-card" class="track-card hidden">
-                <div class="track-image">
-                    <img id="album-art" src="" alt="Album Art">
-                </div>
-                <div class="track-info">
-                    <h2 id="track-name" class="track-name"></h2>
-                    <p id="track-artist" class="track-artist"></p>
-                    <div class="track-meta">
-                        <span id="track-album" class="meta-item">
-                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5zm0-5.5c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1z"/></svg>
-                            <span></span>
-                        </span>
-                        <span id="track-duration" class="meta-item">
-                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
-                            <span></span>
-                        </span>
+            <div id="track-card" class="track-card hidden slide-up">
+                <div class="track-glass-bg" id="track-bg-blur"></div>
+                <div class="track-content">
+                    <div class="track-image-container">
+                        <img id="album-art" src="" alt="Album Art">
+                        <div class="play-overlay">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                        </div>
                     </div>
-                    <button id="download-btn" class="btn btn-download">
-                        <svg viewBox="0 0 24 24" fill="currentColor" class="download-icon"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-                        <span class="btn-text">Download MP3</span>
-                        <span class="btn-loader"></span>
-                    </button>
+                    <div class="track-info">
+                        <h2 id="track-name" class="track-name scroll-text"></h2>
+                        <p id="track-artist" class="track-artist"></p>
+                        <div class="track-meta tags">
+                            <span id="track-album" class="meta-tag">
+                                <span class="tag-icon">💿</span>
+                                <span class="tag-text"></span>
+                            </span>
+                            <span id="track-duration" class="meta-tag">
+                                <span class="tag-icon">⏱️</span>
+                                <span class="tag-text"></span>
+                            </span>
+                        </div>
+                    </div>
                 </div>
+                <button id="download-btn" class="btn btn-download shimmer-btn">
+                    <span class="btn-text">Download High Quality</span>
+                    <div class="btn-loader"></div>
+                </button>
             </div>
 
-            <div id="progress-section" class="progress-section hidden">
+            <div id="progress-section" class="progress-section hidden fade-in">
+                <div class="progress-animation">
+                    <div class="wave"></div>
+                    <div class="wave"></div>
+                    <div class="wave"></div>
+                </div>
                 <div class="progress-header">
-                    <span id="progress-status" class="progress-status">Preparing download...</span>
+                    <span id="progress-status" class="progress-status">Initializing...</span>
                     <span id="progress-percent" class="progress-percent">0%</span>
                 </div>
-                <div class="progress-bar">
-                    <div id="progress-fill" class="progress-fill"></div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar">
+                        <div id="progress-fill" class="progress-fill glow"></div>
+                    </div>
                 </div>
             </div>
 
-            <div id="download-complete" class="download-complete hidden">
-                <div class="success-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            <div id="download-complete" class="download-complete hidden pop-in">
+                <div class="success-ring">
+                    <div class="success-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </div>
                 </div>
-                <h3>Download Complete!</h3>
-                <p>Your song is ready to download</p>
-                <button id="save-btn" class="btn btn-success">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-                    Save to Device
-                </button>
-                <button id="new-download-btn" class="btn btn-secondary">Download Another</button>
+                <h3>Ready to Roll!</h3>
+                <p>Track successfully processed and converted.</p>
+                <div class="action-buttons">
+                    <button id="save-btn" class="btn btn-success float-hover">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-download"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Save MP3
+                    </button>
+                    <button id="new-download-btn" class="btn btn-ghost">Start New</button>
+                </div>
             </div>
         </main>
 
         <footer class="footer">
-            <p>For personal use only. Respect copyright laws.</p>
+            <p>Designed for speed and quality. For personal use only.</p>
         </footer>
     </div>
 
